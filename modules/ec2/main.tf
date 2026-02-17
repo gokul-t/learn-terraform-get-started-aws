@@ -1,0 +1,78 @@
+resource "aws_security_group" "web_access" {
+  name        = "allow_http"
+  description = "Allow HTTP inbound traffic"
+  vpc_id      = var.vpc_id
+
+  ingress {
+    description = "HTTP from anywhere"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"] # Caution: Allows access from anywhere
+  }
+
+  ingress {
+    description = "SSH from anywhere"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"] # Caution: Allows access from anywhere
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+data "aws_ami" "amazon_linux_2023" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name = "name"
+    # Pattern for Amazon Linux 2023 (x86_64)
+    values = ["al2023-ami-2023.*-x86_64"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+}
+
+# Generate a new RSA 4096 private key
+resource "tls_private_key" "ec2_ssh_key" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+
+# Save the private key to a local .pem file
+resource "local_sensitive_file" "pem_file" {
+  filename        = "${path.module}/my-ec2-key.pem"
+  content         = tls_private_key.ec2_ssh_key.private_key_pem
+  file_permission = "0400" # Restricted read-only permission for SSH
+}
+
+# Register the public key with AWS
+resource "aws_key_pair" "deployer" {
+  key_name   = "my-ec2-key"
+  public_key = tls_private_key.ec2_ssh_key.public_key_openssh
+}
+
+resource "aws_instance" "web_server" {
+  ami                    = data.aws_ami.amazon_linux_2023.id
+  instance_type          = "t2.micro"
+  key_name               = aws_key_pair.deployer.key_name # Attaches the key
+  subnet_id              = var.subnet_id
+  vpc_security_group_ids = [aws_security_group.web_access.id]
+  iam_instance_profile   = var.ec2_instance_profile_name
+  availability_zone      = var.availability_zone
+  # User Data script to install and start a web server
+  user_data = var.user_data_script
+  tags = {
+    Name = "learn-terraform-get-started-aws"
+  }
+}

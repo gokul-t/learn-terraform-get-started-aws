@@ -27,3 +27,8 @@ variable "availability_zone" {
   description = "The availability zone where the EC2 instance will be launched"
   type        = string
 }
+
+variable "ec2_instance_profile_name" {
+  description = "The name of the IAM instance profile to attach to the EC2 instance"
+  type        = string
+}

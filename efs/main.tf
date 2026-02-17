@@ -1,19 +1,6 @@
-locals {
-  user_data_script = <<-EOF
-    #!/bin/bash
-    yum install -y amazon-efs-utils
-    mkdir -p /mnt/efs
-    mount -t efs ${aws_efs_file_system.efs.id}:/ /mnt/efs
-  EOF
-}
-
-module "ec2" {
-  source           = "../ec2"
-  user_data_script = local.user_data_script
-}
 
 module "vpc" {
-  source = "../vpc"
+  source = "../modules/vpc"
 }
 
 resource "aws_efs_file_system" "efs" {
@@ -50,6 +37,23 @@ resource "aws_security_group" "efs_sg" {
   }
 }
 
+locals {
+  user_data_script = <<-EOF
+    #!/bin/bash
+    yum install -y amazon-efs-utils
+    mkdir -p /mnt/efs
+    mount -t efs ${aws_efs_file_system.efs.id}:/ /mnt/efs
+  EOF
+}
+
+module "ec2" {
+  source                    = "../modules/ec2"
+  vpc_id                    = module.vpc.main.id
+  subnet_id                 = element(module.vpc.public_subnets, 0).id                # Place in the first public subnet
+  availability_zone         = element(module.vpc.public_subnets, 0).availability_zone # Place in the first AZ of the VPC
+  ec2_instance_profile_name = null
+  user_data_script          = local.user_data_script
+}
 # Generate a new RSA 4096 private key
 resource "tls_private_key" "ec2_ssh_key" {
   algorithm = "RSA"
