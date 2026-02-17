@@ -7,3 +7,7 @@ output "instance_public_ip" {
   value       = aws_instance.web_server.public_ip
 }
 
+output "web_access" {
+  description = "The security group for web access"
+  value       = aws_security_group.web_access
+}

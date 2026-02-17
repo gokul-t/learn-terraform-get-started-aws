@@ -1,7 +1,10 @@
 # Learn Terraform Get Started AWS
 
-repo with learning terraform with aws.
+Learn terraform and prepare for AWS certified developer associate exam.
 
 ## Terraform Commands
 
-blah blah
+- terraform init
+- terraform plan
+- terraform apply
+- terraform destroy

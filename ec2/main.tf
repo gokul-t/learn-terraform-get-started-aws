@@ -1,40 +1,29 @@
-locals {
-  region = "us-east-1"
+module "vpc" {
+  source = "../vpc"
 }
 
-provider "aws" {
-  region = local.region
+module "iam" {
+  source = "../iam"
 }
 
-resource "aws_iam_role" "ec2_access_role" {
-  name = "aws_iam_role.ec2_access_role.name"
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "ec2.amazonaws.com"
-        }
-      }
-    ]
-  })
-}
+variable "user_data_script" {
+  description = "User data script to initialize the EC2 instance"
+  type        = string
+  default     = <<-EOF
+                #!/bin/bash
+                yum update -y
+                yum install -y httpd
+                systemctl start httpd
+                systemctl enable httpd
+                echo "<h1>Hello from Terraform EC2</h1>" > /var/www/html/index.html
+                EOF
 
-resource "aws_iam_role_policy_attachment" "iam_readonly_attach" {
-  role       = aws_iam_role.ec2_access_role.name
-  policy_arn = "arn:aws:iam::aws:policy/IAMReadOnlyAccess"
-}
-
-resource "aws_iam_instance_profile" "ec2_profile" {
-  name = "ec2_profile_al2023"
-  role = aws_iam_role.ec2_access_role.name
 }
 
 resource "aws_security_group" "web_access" {
   name        = "allow_http"
   description = "Allow HTTP inbound traffic"
+  vpc_id      = module.vpc.main.id
 
   ingress {
     description = "HTTP from anywhere"
@@ -65,7 +54,7 @@ data "aws_ami" "amazon_linux_2023" {
   owners      = ["amazon"]
 
   filter {
-    name   = "name"
+    name = "name"
     # Pattern for Amazon Linux 2023 (x86_64)
     values = ["al2023-ami-2023.*-x86_64"]
   }
@@ -96,21 +85,15 @@ resource "aws_key_pair" "deployer" {
 }
 
 resource "aws_instance" "web_server" {
-  ami           = data.aws_ami.amazon_linux_2023.id
-  instance_type = "t2.micro"
-  key_name               = aws_key_pair.deployer.key_name # Attaches the key
+  ami                    = data.aws_ami.amazon_linux_2023.id
+  instance_type          = "t2.micro"
+  key_name               = aws_key_pair.deployer.key_name           # Attaches the key
+  subnet_id              = element(module.vpc.public_subnets, 0).id # Place in the first public subnet
   vpc_security_group_ids = [aws_security_group.web_access.id]
-  iam_instance_profile   = aws_iam_instance_profile.ec2_profile.name
+  iam_instance_profile   = module.iam.ec2_instance_profile.name
+  availability_zone      = element(module.vpc.public_subnets, 0).availability_zone # Place in the first AZ of the VPC
   # User Data script to install and start a web server
-  user_data = <<-EOF
-              #!/bin/bash
-              yum update -y
-              yum install -y httpd
-              systemctl start httpd
-              systemctl enable httpd
-              echo "<h1>Hello from Terraform EC2</h1>" > /var/www/html/index.html
-              EOF
-
+  user_data = var.user_data_script
   tags = {
     Name = "learn-terraform-get-started-aws"
   }
