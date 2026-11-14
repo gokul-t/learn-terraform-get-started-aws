@@ -12,3 +12,9 @@ apply:
 
 destroy:
 	@terraform -chdir=$(SERVICE) destroy
+
+destroy-all:
+	@for svc in ec2 alb ebs efs s3; do \
+	  echo "=== $$svc ==="; \
+	  terraform -chdir=$$svc destroy -auto-approve; \
+	done
