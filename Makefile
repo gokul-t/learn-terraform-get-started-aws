@@ -1,6 +1,9 @@
 # Usage: make SERVICE=ec2 plan
 SERVICE ?= ec2
 
+init:
+	@terraform -chdir=$(SERVICE) init
+
 plan:
 	@terraform -chdir=$(SERVICE) plan
 
