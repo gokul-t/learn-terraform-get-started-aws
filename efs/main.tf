@@ -1,4 +1,9 @@
 
+provider "aws" {
+  region  = var.region
+  profile = "learn-terraform"
+}
+
 module "vpc" {
   source = "../modules/vpc"
 }
@@ -10,12 +15,6 @@ resource "aws_efs_file_system" "efs" {
   tags = {
     Name = "MyEFS"
   }
-}
-
-resource "aws_efs_mount_target" "mount" {
-  file_system_id  = aws_efs_file_system.efs.id
-  subnet_id       = element(module.vpc.public_subnets, 0).id # Place in the first public subnet
-  security_groups = [aws_security_group.efs_sg.id]
 }
 
 resource "aws_security_group" "efs_sg" {
@@ -37,12 +36,25 @@ resource "aws_security_group" "efs_sg" {
   }
 }
 
+resource "aws_efs_mount_target" "mount" {
+  file_system_id  = aws_efs_file_system.efs.id
+  subnet_id       = element(module.vpc.public_subnets, 0).id # Place in the first public subnet
+  security_groups = [aws_security_group.efs_sg.id]
+}
+
 locals {
   user_data_script = <<-EOF
     #!/bin/bash
-    yum install -y amazon-efs-utils
+    yum install -y amazon-efs-utils python3-pip
+    pip3 install botocore
+
     mkdir -p /mnt/efs
-    mount -t efs ${aws_efs_file_system.efs.id}:/ /mnt/efs
+
+    for i in {1..10}; do
+      mount -t efs ${aws_efs_file_system.efs.id}:/ /mnt/efs && break
+      echo "Mount failed, retrying in 15 seconds..."
+      sleep 15
+    done
   EOF
 }
 

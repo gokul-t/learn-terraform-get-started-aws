@@ -1,3 +1,8 @@
+provider "aws" {
+  region  = var.region
+  profile = "learn-terraform"
+}
+
 module "vpc" {
   source = "../modules/vpc"
 }

@@ -1,5 +1,6 @@
 provider "aws" {
-  region = var.region
+  region  = var.region
+  profile = "learn-terraform"
 }
 
 resource "aws_vpc" "main" {

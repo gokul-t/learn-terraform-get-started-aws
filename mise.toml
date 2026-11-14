@@ -1,0 +1,3 @@
+# Terraform version for this learning project, managed by mise.
+[tools]
+terraform = "1.17.2"
