@@ -3,12 +3,6 @@ provider "aws" {
   profile = "learn-terraform"
 }
 
-variable "region" {
-  description = "AWS region to deploy resources"
-  type        = string
-  default     = "us-east-1"
-}
-
 resource "aws_s3_bucket" "terraform_state" {
   bucket = "my-learning-terraform-state-bucket-998877" # Needs to be globally unique
 
